@@ -11,5 +11,5 @@ Ces données permettent de capturer les mobilisations et les signaux de la soci�
 - Ensemble des amendements 
 - Ensemble des PJL et PPL
 - Pétitions citoyennes déposées à l'Assemblée nationale
-- Repertoire des activités déclarés par les représentants d'intérêts (HATVP)
+- Repertoire des activités déclarées par les représentants d'intérêts (HATVP)
 
