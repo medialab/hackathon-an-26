@@ -1,0 +1,7 @@
+# Données extraites (volumineuses — à régénérer avec extract_amendements.py)
+data/
+
+# Secrets
+.env
+
+__pycache__/
