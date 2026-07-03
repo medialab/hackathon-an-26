@@ -12,4 +12,9 @@ Ces données permettent de capturer les mobilisations et les signaux de la soci�
 - Ensemble des PJL et PPL
 - Pétitions citoyennes déposées à l'Assemblée nationale
 - Repertoire des activités déclarées par les représentants d'intérêts (HATVP)
+À récupérer ici : https://www.hatvp.fr/le-repertoire/
+Par exemple :
+```shell
+curl -LO http://www.hatvp.fr/agora/opendata/agora_repertoire_opendata.json
+```
 
