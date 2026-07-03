@@ -80,6 +80,18 @@ def normalize(name: str) -> str:
     return "".join(c for c in nfkd if not unicodedata.combining(c)).lower().strip()
 
 
+def split_names(auteur_libelle: str) -> list:
+    """Découpe 'Mme A, M. B et M. C' en noms individuels.
+
+    À l'Assemblée les listes sont complètes (vérifié : jamais de « et
+    plusieurs de ses collègues ») ; au Sénat le libellé ne contient souvent
+    que le premier auteur. Les mentions « rapporteur(e) » cassent parfois la
+    ponctuation ('rapporteur Mme X'), on les remplace par un séparateur."""
+    cleaned = re.sub(r",?\s*rapporteure?s?(\s+génér\w+)?\s*", ", ",
+                     auteur_libelle or "", flags=re.IGNORECASE)
+    return [n for n in (s.strip() for s in re.split(r",| et ", cleaned)) if n]
+
+
 class ApiClient:
     """GET JSON avec retry/backoff (429, 5xx, erreurs réseau)."""
 
@@ -116,9 +128,11 @@ class ApiClient:
                 time.sleep(min(2 ** attempt, 60))
         raise RuntimeError(f"Échec après {MAX_RETRIES} tentatives sur {url}: {last_err}")
 
-    def get_all_pages(self, path: str, limit: int, **params) -> list:
-        """Toutes les pages d'un endpoint paginé {data, meta}, pages en parallèle."""
-        first = self.get(path, page=1, limit=limit, **params)
+    def get_all_pages(self, path: str, limit: int, first: dict = None, **params) -> list:
+        """Toutes les pages d'un endpoint paginé {data, meta}, pages en parallèle.
+        `first` : page 1 déjà téléchargée, pour ne pas la re-demander."""
+        if first is None:
+            first = self.get(path, page=1, limit=limit, **params)
         records = list(first.get("data") or [])
         total_pages = (first.get("meta") or {}).get("totalPages") or 1
         if total_pages > 1:
@@ -238,8 +252,22 @@ class GroupeResolver:
             self.parls_by_prenom_nom.setdefault(
                 normalize(f"{p.get('prenom') or ''} {p.get('nom') or ''}"), []).append(info)
 
+        self._name_cache = {}
+
     def signataire(self, slug: str) -> dict:
         return self.parl_by_slug.get(slug) or {"slug": slug}
+
+    def resolve_name(self, name: str):
+        """Résout un nom tel qu'écrit dans auteurLibelle ("M. Molac",
+        "Mme Perrine Goulet") vers un parlementaire. None si inconnu ou ambigu."""
+        if name in self._name_cache:
+            return self._name_cache[name]
+        nom = normalize(CIVILITE_RE.sub("", name))
+        candidats = (self.parls_by_nom.get(nom)
+                     or self.parls_by_prenom_nom.get(nom) or [])
+        info = candidats[0] if len(candidats) == 1 else None
+        self._name_cache[name] = info
+        return info
 
     def auteur(self, auteur_libelle, signataire_slugs) -> dict:
         """Groupe de l'auteur = 1er nom de auteurLibelle, cherché en priorité
@@ -267,44 +295,110 @@ class GroupeResolver:
         return {"nom": premier}  # introuvable ou ambigu
 
 
+class CouvertureTracker:
+    """Suivi des amendements déjà téléchargés, pour éviter de re-télécharger
+    un parlementaire qui n'apportera rien de nouveau.
+
+    Pour chaque parlementaire on compte les amendements déjà en local qui le
+    citent comme signataire (parsé depuis auteurLibelle, dont la liste est
+    complète). Si ce compte atteint le total annoncé par l'API pour lui ET que
+    sa première page ne contient que des uids connus, on le saute : tous ses
+    amendements ont déjà été récupérés via les dossiers ou ses cosignataires."""
+
+    def __init__(self, resolver: GroupeResolver):
+        self.resolver = resolver
+        self.known_uids = set()
+        self.counts = {}
+        self._libelle_cache = {}  # les libellés se répètent massivement
+        self._lock = threading.Lock()
+
+    def _slugs(self, libelle: str) -> tuple:
+        slugs = self._libelle_cache.get(libelle)
+        if slugs is None:
+            slugs = tuple({info["slug"] for name in split_names(libelle)
+                           if (info := self.resolver.resolve_name(name))})
+            self._libelle_cache[libelle] = slugs
+        return slugs
+
+    def ingest(self, amendements) -> None:
+        with self._lock:
+            for a in amendements:
+                uid = a.get("uid")
+                if uid in self.known_uids:
+                    continue
+                self.known_uids.add(uid)
+                for slug in self._slugs(a.get("auteurLibelle") or ""):
+                    self.counts[slug] = self.counts.get(slug, 0) + 1
+
+    def deja_couvert(self, slug: str, total: int, premiere_page: list) -> bool:
+        with self._lock:
+            return (self.counts.get(slug, 0) == total
+                    and all(a.get("uid") in self.known_uids for a in premiere_page))
+
+    def preload(self, paths) -> None:
+        """Réindexe les fichiers bruts d'une exécution précédente (reprise)."""
+        for path in paths:
+            if path.exists():
+                with open(path, encoding="utf-8") as fh:
+                    self.ingest(json.loads(line)["amendement"] for line in fh)
+
+
 def merge_and_export(out_dir: Path, raw_dossiers: Path, raw_parls: Path,
                      resolver: GroupeResolver) -> dict:
     """Fusionne les deux passes, déduplique par uid, enrichit, exporte JSONL + CSV."""
     log("Fusion et déduplication…")
     amendements = {}
 
-    with open(raw_dossiers, encoding="utf-8") as fh:
-        for line in fh:
-            rec = json.loads(line)
-            amdt = rec["amendement"]
-            amdt["dossier"] = rec["dossier"]
-            amdt["_signataire_slugs"] = []
-            amendements[amdt["uid"]] = amdt
+    def iter_jsonl(path):
+        """Ignore une éventuelle dernière ligne tronquée (extraction en cours)."""
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+    for rec in iter_jsonl(raw_dossiers):
+        amdt = rec["amendement"]
+        amdt["dossier"] = rec["dossier"]
+        amdt["_signataire_slugs"] = []
+        amendements[amdt["uid"]] = amdt
 
     seuls_via_parlementaires = 0
-    with open(raw_parls, encoding="utf-8") as fh:
-        for line in fh:
-            rec = json.loads(line)
-            slug = rec["slug"]
-            amdt = rec["amendement"]
-            existing = amendements.get(amdt["uid"])
-            if existing is None:
-                amdt["_signataire_slugs"] = [slug]
-                amendements[amdt["uid"]] = amdt
-                seuls_via_parlementaires += 1
-            else:
-                # slug déjà vu = reprise après interruption au milieu d'une entité
-                if slug not in existing["_signataire_slugs"]:
-                    existing["_signataire_slugs"].append(slug)
-                # la route parlementaire porte des champs absents de la route dossier
-                for field in ("legislature", "chambre", "dateSort", "dossier"):
-                    if existing.get(field) is None and amdt.get(field) is not None:
-                        existing[field] = amdt[field]
+    for rec in iter_jsonl(raw_parls):
+        slug = rec["slug"]
+        amdt = rec["amendement"]
+        existing = amendements.get(amdt["uid"])
+        if existing is None:
+            amdt["_signataire_slugs"] = [slug]
+            amendements[amdt["uid"]] = amdt
+            seuls_via_parlementaires += 1
+        else:
+            # slug déjà vu = reprise après interruption au milieu d'une entité
+            if slug not in existing["_signataire_slugs"]:
+                existing["_signataire_slugs"].append(slug)
+            # la route parlementaire porte des champs absents de la route dossier
+            for field in ("legislature", "chambre", "dateSort", "dossier"):
+                if existing.get(field) is None and amdt.get(field) is not None:
+                    existing[field] = amdt[field]
 
     for amdt in amendements.values():
         slugs = amdt.pop("_signataire_slugs")
         amdt["auteur"] = resolver.auteur(amdt.get("auteurLibelle"), slugs)
-        amdt["signataires"] = [resolver.signataire(s) for s in slugs]
+        # signataires = slugs observés via la route parlementaire, complétés par
+        # le parsing de auteurLibelle (parlementaires sautés, ex-parlementaires…)
+        signataires = [resolver.signataire(s) for s in slugs]
+        vus = set(slugs)
+        for name in split_names(amdt.get("auteurLibelle") or ""):
+            if normalize(name).startswith("le gouvernement"):
+                continue
+            info = resolver.resolve_name(name)
+            if info is None:
+                signataires.append({"nom": name})  # inconnu du référentiel ou homonyme
+            elif info["slug"] not in vus:
+                vus.add(info["slug"])
+                signataires.append(info)
+        amdt["signataires"] = signataires
 
     jsonl_path = out_dir / "amendements.jsonl"
     with open(jsonl_path, "w", encoding="utf-8") as fh:
@@ -323,7 +417,8 @@ def merge_and_export(out_dir: Path, raw_dossiers: Path, raw_parls: Path,
                 "auteur_nom": auteur.get("nom"),
                 "auteur_groupe": auteur.get("groupe"),
                 "auteur_couleur": auteur.get("couleur"),
-                "signataires": "|".join(s.get("slug") or "" for s in amdt["signataires"]),
+                "signataires": "|".join(s.get("slug") or s.get("nom") or ""
+                                        for s in amdt["signataires"]),
                 "signataires_groupes": "|".join(s.get("groupe") or "?" for s in amdt["signataires"]),
                 "dossier_uid": dossier.get("uid"),
                 "dossier_titre": dossier.get("titre"),
@@ -403,20 +498,37 @@ def main() -> None:
         dossiers = dossiers[: args.max_entities]
         parlementaires = parlementaires[: args.max_entities]
 
+    tracker = CouvertureTracker(resolver)
+    t0 = time.time()
+    tracker.preload([raw_dossiers_path, raw_parls_path])
+    if tracker.known_uids:
+        log(f"Reprise : {len(tracker.known_uids)} amendements déjà en local "
+            f"(réindexés en {time.time() - t0:.0f}s)")
+    sautes = []  # list.append est thread-safe (CPython)
+
     raw_dossiers = JsonlStore(raw_dossiers_path)
     raw_parls = JsonlStore(raw_parls_path)
     try:
         def fetch_dossier(dossier: dict) -> None:
             amdts = client.get_all_pages(
                 f"/dossiers/{dossier['uid']}/amendements", PAGE_LIMIT)
+            tracker.ingest(amdts)
             context = {"uid": dossier["uid"], "titre": dossier.get("titre"),
                        "titreCourt": dossier.get("titreCourt")}
             raw_dossiers.append(
                 {"dossier": context, "amendement": a} for a in amdts)
 
         def fetch_parlementaire(parl: dict) -> None:
-            amdts = client.get_all_pages(
-                f"/parlementaires/{parl['slug']}/amendements", PAGE_LIMIT_PARL)
+            path = f"/parlementaires/{parl['slug']}/amendements"
+            # sonde : 1 requête pour savoir si tout est déjà en local
+            first = client.get(path, page=1, limit=PAGE_LIMIT_PARL)
+            meta = first.get("meta") or {}
+            if tracker.deja_couvert(parl["slug"], meta.get("total") or 0,
+                                    first.get("data") or []):
+                sautes.append(parl["slug"])
+                return
+            amdts = client.get_all_pages(path, PAGE_LIMIT_PARL, first=first)
+            tracker.ingest(amdts)
             raw_parls.append(
                 {"slug": parl["slug"], "amendement": a} for a in amdts)
 
@@ -424,6 +536,8 @@ def main() -> None:
                   fetch_dossier, args.workers)
         run_phase(client, state, "parlementaires", parlementaires, "slug",
                   fetch_parlementaire, args.workers)
+        if sautes:
+            log(f"Parlementaires sautés (amendements déjà tous couverts) : {len(sautes)}")
     finally:
         raw_dossiers.close()
         raw_parls.close()
@@ -437,6 +551,7 @@ def main() -> None:
         "amendements_annonces_par_api": stats.get("totalAmendements"),
         "dossiers": len(dossiers),
         "parlementaires": len(parlementaires),
+        "parlementaires_sautes_deja_couverts": len(sautes),
         "requetes_http": client.requests_done,
         **counts,
     }
