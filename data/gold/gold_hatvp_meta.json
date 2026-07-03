@@ -1,0 +1,683 @@
+{
+  "version": "v2-recall",
+  "input": "data/amendements_uniques_2025.csv",
+  "amendements_total": 13405,
+  "amendements_avec_texte": 13404,
+  "gold": {
+    "amendements_labellises": 633,
+    "labels": 633,
+    "organismes_distincts": 149,
+    "top_organismes": [
+      [
+        "FNSEA",
+        46
+      ],
+      [
+        "CONSEIL NATIONAL DES BARREAUX",
+        37
+      ],
+      [
+        "FEDERATION DES ENTREPRISES DES OUTRE-MER",
+        32
+      ],
+      [
+        "MUTUELLE GENERALE EDUCATION NATIONALE",
+        22
+      ],
+      [
+        "MUTUALITE FRANCAISE ILE DE FRANCE",
+        20
+      ],
+      [
+        "FRANCE NATURE ENVIRONNEMENT",
+        20
+      ],
+      [
+        "LES PRODUCTEURS DE LEGUMES DE FRANCE",
+        18
+      ],
+      [
+        "ELECTRICITE DE FRANCE",
+        17
+      ],
+      [
+        "ORDRE NATIONAL DES MEDECINS",
+        15
+      ],
+      [
+        "MOUVEMENT DES ENTREPRISES DE LA NOUVELLE ECONOMIE",
+        14
+      ],
+      [
+        "INSTITUT DE L'ECONOMIE CIRCULAIRE",
+        11
+      ],
+      [
+        "FONDATION POUR LE LOGEMENT SOCIAL",
+        11
+      ],
+      [
+        "NEXEM",
+        11
+      ],
+      [
+        "ASS POUR DROIT MOURIR DIGNITE",
+        11
+      ],
+      [
+        "COLLECTIF HANDICAPS",
+        10
+      ],
+      [
+        "AFFORDABLE MEDICINES FRANCE",
+        10
+      ],
+      [
+        "MOUVEMENT DES ENTREPRISES DE FRANCE",
+        9
+      ],
+      [
+        "CONF NAT PROD VINS EAUX DE VIE",
+        8
+      ],
+      [
+        "FEDERATION HOSPITALIERE FRANCE",
+        8
+      ],
+      [
+        "FÉDÉRATION NATIONALE DES SYNDICATS D'EXPLOITANTS AGRICOLES",
+        8
+      ],
+      [
+        "CHAMBRES D'AGRICULTURE FRANCE",
+        7
+      ],
+      [
+        "FEDERATION DES INDUSTRIES NAUTIQUES",
+        7
+      ],
+      [
+        "CANOPEE",
+        6
+      ],
+      [
+        "SYNDICAT DES INDEPENDANTS",
+        6
+      ],
+      [
+        "FEDERATION NATIONALE DES COURSES HIPPIQUES",
+        6
+      ],
+      [
+        "ASS DES CHAINES DU CABLE ET DU SATELLITE",
+        6
+      ],
+      [
+        "CONFEDERATION PAYSANNE",
+        6
+      ],
+      [
+        "FEDERATION FRANCAISE DU BATIMENT",
+        5
+      ],
+      [
+        "FRANCE INVEST",
+        5
+      ],
+      [
+        "VALOREM",
+        5
+      ]
+    ]
+  },
+  "weak": {
+    "amendements_labellises": 3794,
+    "labels": 3794,
+    "organismes_distincts": 372,
+    "top_organismes": [
+      [
+        "ALLIANCE FRANCAISE DES INDUSTRIES DU NUMERIQUE",
+        402
+      ],
+      [
+        "UNION NATIONALE DES PROFESSIONNELS DE SANTE",
+        314
+      ],
+      [
+        "TRANSITION ECOLOGIQUE FRANCE",
+        208
+      ],
+      [
+        "LES PRODUCTEURS DE LEGUMES DE FRANCE",
+        167
+      ],
+      [
+        "INSTITUT DE LA PROTECTION SOCIALE",
+        153
+      ],
+      [
+        "SYNDICAT DES ENERGIES RENOUVELABLES",
+        135
+      ],
+      [
+        "COMPAGNIE DE SAINT-GOBAIN",
+        121
+      ],
+      [
+        "CONSEIL NATIONAL DE LA XR",
+        112
+      ],
+      [
+        "CITOYENS POUR UNE MORT CHOISIE",
+        99
+      ],
+      [
+        "ASS DES CHAINES DU CABLE ET DU SATELLITE",
+        92
+      ],
+      [
+        "INSTITUT POUR LES SAVOIR-FAIRE FRANCAIS",
+        67
+      ],
+      [
+        "UNION DEP PETITES MOYENNES ENTREPRISES",
+        65
+      ],
+      [
+        "GENERATIONS FUTURES",
+        52
+      ],
+      [
+        "FEDERATION DES INDUSTRIES NAUTIQUES",
+        51
+      ],
+      [
+        "CHAMBRE FRANÇAISE DE L'ECONOMIE SOCIALE ET SOLIDAIRE",
+        50
+      ],
+      [
+        "INSTITUT FRANCAIS EXPERTS COMPTABLES",
+        42
+      ],
+      [
+        "SNCF",
+        39
+      ],
+      [
+        "EN AVANT TOUTE(S)",
+        37
+      ],
+      [
+        "UNION REG SYNDICAT TRANSPORT ROUTIER PIC",
+        33
+      ],
+      [
+        "PARIS 2024 COMITE D'ORGANISATION DES JEUX OLYMPIQUES ET PARALYMPIQUES (COJO)",
+        31
+      ],
+      [
+        "PUBLIC & PRIVATE LINK",
+        29
+      ],
+      [
+        "ARCELORMITTAL FRANCE",
+        29
+      ],
+      [
+        "RTE RESEAU DE TRANSPORT D'ELECTRICITE",
+        29
+      ],
+      [
+        "UNION NATIONALE DES ASSOCIATIONS AGREEES DU SYSTEME DE SANTE",
+        28
+      ],
+      [
+        "INSTITUT DE L'ECONOMIE CIRCULAIRE",
+        27
+      ],
+      [
+        "UNION DES ENTREPRISES SECURITE PRIVEE",
+        26
+      ],
+      [
+        "JEUNES AGRICULTEURS",
+        26
+      ],
+      [
+        "AGENCE NATIONALE CHEQUES VACANCES",
+        24
+      ],
+      [
+        "ELECTRICITE DE FRANCE",
+        23
+      ],
+      [
+        "CHAMBRE DE COMMERCE ET D'INDUSTRIE",
+        23
+      ]
+    ]
+  },
+  "candidates": {
+    "amendements_labellises": 639,
+    "labels": 639,
+    "organismes_distincts": 138,
+    "top_organismes": [
+      [
+        "GROUPE VYV",
+        113
+      ],
+      [
+        "GE FRANCE",
+        86
+      ],
+      [
+        "C-CONSEIL",
+        44
+      ],
+      [
+        "ASSOCIATION A T T A C",
+        19
+      ],
+      [
+        "EP FRANCE",
+        15
+      ],
+      [
+        "COM'PUBLICS",
+        15
+      ],
+      [
+        "IMPACT AI",
+        13
+      ],
+      [
+        "OBJECTIF OFP",
+        13
+      ],
+      [
+        "GC ORGANISATION",
+        13
+      ],
+      [
+        "UNION NATIONALE DES ORGANISMES D ASSURANCE MALADIE COMPLEMENTAIRE",
+        11
+      ],
+      [
+        "FÉDÉRATION DES ACTEURS DU COMMERCE DANS LES TERRITOIRES",
+        10
+      ],
+      [
+        "ELM STRATEGIE",
+        10
+      ],
+      [
+        "ALLIAGES ET TERRITOIRES",
+        10
+      ],
+      [
+        "G-AGENCE",
+        9
+      ],
+      [
+        "OSEZ POLITIQUE!",
+        8
+      ],
+      [
+        "INSTITUT DE L ENTREPRISE",
+        8
+      ],
+      [
+        "VINCI CONSTRUCTION",
+        7
+      ],
+      [
+        "FRANCE RENOUVELABLES",
+        7
+      ],
+      [
+        "TOURISME & TERRITOIRES",
+        7
+      ],
+      [
+        "B CORP INTERNATIONAL",
+        7
+      ],
+      [
+        "SEANCE PUBLIQUE (RADIEE)",
+        7
+      ],
+      [
+        "UNION DES PROFESSIONNELS DU CBD",
+        7
+      ],
+      [
+        "LES PROFESSIONNELS DU PNEU",
+        7
+      ],
+      [
+        "SOS EDUCATION",
+        6
+      ],
+      [
+        "CABINET 37",
+        5
+      ],
+      [
+        "SECHE ENVIRONNEMENT",
+        5
+      ],
+      [
+        "CDC HABITAT",
+        5
+      ],
+      [
+        "SEB DEVELOPPEMENT",
+        5
+      ],
+      [
+        "MANTU COMMUNICATIONS",
+        5
+      ],
+      [
+        "JEUNES AGRICULTEURS",
+        4
+      ]
+    ]
+  },
+  "unresolved": {
+    "amendements": 1070,
+    "labels": 1070,
+    "acteurs_distincts": 713,
+    "top_acteurs": [
+      [
+        "Social",
+        33
+      ],
+      [
+        "Conseil national de l’ordre des experts-comptables",
+        24
+      ],
+      [
+        "France Assos Santé",
+        23
+      ],
+      [
+        "Départements de France",
+        19
+      ],
+      [
+        "Cour des comptes",
+        17
+      ],
+      [
+        "Régions de France",
+        15
+      ],
+      [
+        "rapport parlementaire Daubresse-Cosson",
+        11
+      ],
+      [
+        "France urbaine",
+        11
+      ],
+      [
+        "travaux du Sénat",
+        11
+      ],
+      [
+        "France insoumise",
+        9
+      ],
+      [
+        "députés Antoine Léaument",
+        8
+      ],
+      [
+        "TATFNB",
+        8
+      ],
+      [
+        "collectif anti-mafia Massimu Susini",
+        7
+      ],
+      [
+        "Ile-de-France Mobilités",
+        7
+      ],
+      [
+        "l’UNICEF France",
+        7
+      ],
+      [
+        "Nous proposons donc de la réduire. L'OIP",
+        7
+      ],
+      [
+        "l'Association pour le Droit de Mourir",
+        7
+      ],
+      [
+        "CNAM dans son rapport charges",
+        6
+      ],
+      [
+        "TPE",
+        6
+      ],
+      [
+        "France Urbaine",
+        6
+      ],
+      [
+        "France Hydroélectricité",
+        6
+      ],
+      [
+        "Rassemblement National",
+        6
+      ],
+      [
+        "France Assureurs",
+        6
+      ],
+      [
+        "Défenseure des droits",
+        6
+      ],
+      [
+        "Intercommunalités de France",
+        6
+      ],
+      [
+        "l’Observatoire Amarok",
+        6
+      ],
+      [
+        "Si elle",
+        6
+      ],
+      [
+        "l’Association des jeunes élus de France",
+        5
+      ],
+      [
+        "CNRS",
+        5
+      ],
+      [
+        "l’association Addictions France",
+        5
+      ],
+      [
+        "l’Office Parlementaire d’Évaluation des Choix Scientifiques",
+        5
+      ],
+      [
+        "Technologiques",
+        5
+      ],
+      [
+        "non commerciales relevant du régime social agricole défini aux articles L",
+        5
+      ],
+      [
+        "Gouvernement tout en définissant la notion d",
+        5
+      ],
+      [
+        "Syndicat des avocats de France",
+        5
+      ],
+      [
+        "l’approche du label SecNumCloud",
+        4
+      ],
+      [
+        "propositions émises par les membres du Comité national du trait de côte",
+        4
+      ],
+      [
+        "Climat",
+        4
+      ],
+      [
+        "SNADOM",
+        4
+      ],
+      [
+        "UNICEF France",
+        4
+      ]
+    ]
+  },
+  "par_evidence": {
+    "org_sujet_actif": 39,
+    "mention_directe": 3794,
+    "co_redaction": 594,
+    "candidate": 639
+  },
+  "par_stance": {
+    "positif_probable": 2035,
+    "non_determine": 3985,
+    "negatif_probable": 116
+  },
+  "alias_appris_en_cours_de_run": {
+    "synprefh": "SYNDICAT DES PHARMACIENS L A",
+    "setf": "SOCIETE L.D.C.",
+    "ibp": "ALLIANCE FRANCAISE DES INDUSTRIES DU NUMERIQUE",
+    "hcfea": "ASSOCIATION GROUPE ESSEC",
+    "fhf": "FEDERATION HOSPITALIERE FRANCE",
+    "fedom": "FEDERATION DES ENTREPRISES DES OUTRE-MER",
+    "cnml": "CONSEIL NATIONAL DE LA XR",
+    "inec": "INSTITUT DE L'ECONOMIE CIRCULAIRE",
+    "ihra": "L'ALLIANCE 7",
+    "ser": "SYNDICAT DES ENERGIES RENOUVELABLES",
+    "plfg": "FEDERATION DES INDUSTRIES NAUTIQUES",
+    "cci": "CHAMBRE COMMERCE ET D INDUSTRIE DU GERS",
+    "fhp": "FEDERATION DE L'HOSPITALISATION PRIVEE",
+    "afd": "AGENCE FRANCAISE DE DEVELOPPEMENT",
+    "cnfel": "CONSEIL NATIONAL DE LA XR",
+    "fedene": "FEDERATION DES SERVICES ENERGIE ENVIRONNEMENT",
+    "dcc": "ENEDIS",
+    "ipa": "FED NATIONALE DES INFIRMIERS",
+    "i osc": "F. INITIATIVES",
+    "cnen": "FEDERATION DES INDUSTRIES NAUTIQUES",
+    "cnm": "CONSEIL NATIONAL DE LA XR",
+    "admd": "ASS POUR DROIT MOURIR DIGNITE",
+    "cnpe": "CONSEIL NATIONAL DE LA XR",
+    "anef": "GE FRANCE",
+    "udes": "UNION DES EMPLOYEURS DE L'ECONOMIE SOCIALE ET SOLIDAIRE",
+    "rte": "RTE RESEAU DE TRANSPORT D'ELECTRICITE",
+    "cnpn": "CONSEIL NATIONAL DE LA XR",
+    "lrar": "PUBLIC & PRIVATE LINK",
+    "sgp": "SOCIÉTÉ DES GRANDS PROJETS",
+    "fnap": "AIDES",
+    "cnom": "ORDRE NATIONAL DES MEDECINS",
+    "rnma": "LE MOUVEMENT ASSOCIATIF",
+    "cnpi": "SYND NATIONAL PROFESSIONELS IMMOBILIERS",
+    "ja": "UNION DES JEUNES AGRICULTEURS 59-62",
+    "medef": "MOUVEMENT DES ENTREPRISES DE FRANCE",
+    "psn": "ECOLOGIC COMING OUT",
+    "cnosf": "CONSEIL NATIONAL ORDRE DES SAGES FEMMES",
+    "onp": "CONSEIL NATIONAL DE L ORDRE DES PHARMACIENS",
+    "afpdm": "ALLIANCE FRANCAISE DES PLACES DE MARCHE",
+    "astp": "ASS SOUTIEN DU THEATRE PRIVE",
+    "pas": "LES PRODUCTEURS DE LEGUMES DE FRANCE",
+    "lfb": "LABORATOIRE FRANCAIS DU FRACTIONNEMENT ET DES BIOTECHNOLOGIES",
+    "lodeom": "FEDERATION DES ENTREPRISES DES OUTRE-MER",
+    "cir": "ASS DES CHAINES DU CABLE ET DU SATELLITE",
+    "fne": "FRANCE NATURE ENVIRONNEMENT IDF",
+    "unipa": "FED NATIONALE DES INFIRMIERS",
+    "fas": "FEDERATION DES ACTEURS DE LA SOLIDARITE",
+    "arenh": "ASS DES CHAINES DU CABLE ET DU SATELLITE",
+    "fnsea": "FÉDÉRATION NATIONALE DES SYNDICATS D'EXPLOITANTS AGRICOLES",
+    "rac": "RESEAU ACTION CLIMAT FRANCE",
+    "fbf": "FEDERATION BANCAIRE FRANCAISE",
+    "lfp": "LIGUE DE FOOTBALL PROFESSIONNEL",
+    "ald": "FEDERATION DES INDUSTRIES NAUTIQUES",
+    "ccr": "CAISSE CENTRALE DE REASSURANCE",
+    "anah": "CLUB DE L AMELIORATION DE L HABITAT",
+    "ciic": "FEDERATION DEP B.T.P. CORSE DU SUD",
+    "andra": "AGENCE NAT GESTION DECHETS RADIOACTIFS",
+    "ocde": "ORGANISATION ET DEVELOPPEMENT",
+    "psad": "SYNDICAT PROFESSIONNEL UNION DES PRESTATAIRES DE SANTE A DOMICILE INDEPENDANTS",
+    "ess": "CHAMBRE REGIONALE DE L'ECONOMIE SOCIALE ET SOLIDAIRE HAUTS DE FRANCE",
+    "cnspfv": "FEDERATION DES INDUSTRIES NAUTIQUES",
+    "adfm": "FEDERATION DES INDUSTRIES NAUTIQUES",
+    "ue": "ASS DES CHAINES DU CABLE ET DU SATELLITE",
+    "fnam": "FEDERATION NATIONALE DE L'AVIATION ET DE SES METIERS",
+    "cndsi": "CONSEIL NATIONAL DE LA XR",
+    "cress": "ECOLAB SERVICES SNC",
+    "abf": "GE FRANCE",
+    "hcc": "TRANSITION ECOLOGIQUE FRANCE",
+    "cpsf": "COMITE PARALYMPIQUE ET SPORTIF FRANCAIS (C.P.S.F.)",
+    "agirc arrco": "STELLANTIS N.V",
+    "aet": "ECO-TECH CERAM",
+    "epic": "ELECTRICITE DE FRANCE",
+    "cia": "F. INITIATIVES",
+    "sas": "ASS DES CHAINES DU CABLE ET DU SATELLITE",
+    "pdsa": "ASS DES CHAINES DU CABLE ET DU SATELLITE",
+    "csess": "ECOLAB SERVICES SNC",
+    "seto": "SYNDICAT DES ENTREPRISES DU TOUR OPERATING",
+    "amf": "GE FRANCE",
+    "esus": "ALLIANCE FRANCAISE DES INDUSTRIES DU NUMERIQUE",
+    "ase": "COMPAGNIE DE SAINT-GOBAIN",
+    "ppf": "FEDERATION DES INDUSTRIES NAUTIQUES",
+    "dep": "ALLIANCE FRANCAISE DES INDUSTRIES DU NUMERIQUE",
+    "cnop": "CONSEIL NATIONAL DE L ORDRE DES PHARMACIENS",
+    "is": "FEDERATION DES INDUSTRIES NAUTIQUES",
+    "onfv": "FEDERATION DES INDUSTRIES NAUTIQUES",
+    "cada": "ASS DES CHAINES DU CABLE ET DU SATELLITE",
+    "cnb": "CONSEIL NATIONAL DES BARREAUX",
+    "suge": "SNCF",
+    "sa": "ELECTRICITE DE FRANCE",
+    "cap": "CONVERGENCE.ANIMAUX.POLITIQUE (C.A.P)",
+    "cneser": "CONSEIL NATIONAL DE LA XR",
+    "sup": "LA POSTE",
+    "slgitc": "FEDERAL EXPRESS CORPORATION",
+    "cnte": "CONSEIL NATIONAL DE LA XR",
+    "mgen": "MUTUELLE GENERALE EDUCATION NATIONALE",
+    "umj": "ASS DES CHAINES DU CABLE ET DU SATELLITE",
+    "ucff": "UNION COOPERATION FORESTIERE FRANCAISE",
+    "sidevam": "SYNDICAT POUR LA VALORISATION ET L 'ELIMINATION DES DECHETS",
+    "had": "FED NAT ETABL HOSPITALISATION A DOMICILE",
+    "dom": "FEDERATION DES ENTREPRISES DES OUTRE-MER",
+    "ppe": "FRANCE NATURE ENVIRONNEMENT IDF",
+    "ipc": "DGA GROUP FRANCE",
+    "ademe": "GE FRANCE"
+  },
+  "params": {
+    "text_col": "amendment_summary",
+    "content_col": null,
+    "min_score": 90,
+    "min_cover": 0.6,
+    "cand_score": 75,
+    "cand_cover": 0.4,
+    "min_len": 8,
+    "quasi_score": 85,
+    "window": 140,
+    "aliases_file": null
+  },
+  "duree_s": 26.2
+}
