@@ -125,6 +125,11 @@ def norm(s: str) -> str:
     return s
 
 
+def fold(t: str) -> str:
+    """Repli singulier/pluriel pour comparer des tokens (marches ~ marche)."""
+    return t[:-1] if len(t) > 4 and t.endswith("s") else t
+
+
 # Tokens trop génériques pour distinguer un organisme (identique v1).
 STOP = {
     "france", "francais", "francaise", "national", "nationale", "nationaux",
@@ -204,17 +209,23 @@ CUE_WEAK = re.compile("|".join(_CUE_WEAK), re.IGNORECASE)
 LEAD_FILLER = re.compile(
     r"^(?:l['’]\s*appui\s+de\s+|le\s+concours\s+de\s+|le\s+soutien\s+de\s+|les\s+services\s+de\s+|"
     r"les\s+[ée]quipes\s+de\s+|les\s+repr[ée]sentants?\s+de\s+|nombreux(?:es)?\s+|plusieurs\s+|"
-    r"celles?\s+de\s+|ceux\s+de\s+|notamment\s+|en\s+particulier\s+)+",
+    r"celles?\s+de\s+|ceux\s+de\s+|notamment\s+|en\s+particulier\s+|[aà]\s+juste\s+titre\s+|"
+    # « issu des propositions formulées par X » -> l'amorce ne consomme que « issu des »,
+    # le reste pollue la mention : on le retire.
+    r"(?:(?:une?|la|les|des?|leurs?|ses)\s+)?(?:propositions?|recommandations?|pr[ée]conisations?|"
+    r"demandes?|suggestions?|travaux|contributions?|attentes?)\s+"
+    r"(?:formul[ée]e?s?\s+|exprim[ée]e?s?\s+|port[ée]e?s?\s+|d[ée]fendue?s?\s+)?"
+    r"(?:par\s+|de\s+|des\s+|du\s+|d['’]\s*))+",
     re.IGNORECASE,
 )
 
 # Fin de mention : ponctuation forte, connecteurs ; « pour » seulement devant
 # infinitif ou « que » (préserve « Association pour la protection... »).
 STOPTAIL = re.compile(
-    r"[.,;:!?«»\"()\n]"
+    r"[.,;:!?«»\"()\n–—]"
     r"|\b(?:qui|que|dont|afin|visant|vise|permet|permettant|concernant)\b"
     r"|\bpour\s+(?=que\b|[a-zàâäéèêëîïôöùûüç]+(?:er|ir|re)\b)"
-    r"|\b(?:et\s+de\b|dans\s+l[ea]\b|sur\s+l|il\s|elle\s|ce\s|cet\s)",
+    r"|\b(?:et\s+de\b|dans\s+l[ea]\b|sur\s+l|il\s|elle\s|ce\s|cet\s|en\s+vue\b|lors\s+de\b|aupr[èe]s\b)",
     re.IGNORECASE,
 )
 
@@ -318,6 +329,9 @@ def good_actor(s: str) -> bool:
         return False
     toks = ns.split()
     if toks[0] in _LEAD_JUNK or any(t in _META_TOKENS for t in toks):
+        return False
+    # anaphore générique (« le Conseil », « l'association ») : aucun token distinctif.
+    if all(t in STOP for t in toks):
         return False
     # exige au moins un token "propre" : capitalisé et pas un déterminant/pronom.
     return any(t[:1].isupper() and norm(t) not in _ACTOR_STOP for t in s.split())
@@ -493,18 +507,31 @@ def load_hatvp(path: Path, aliases_path: Path | None = None):
 # Résolution d'une mention -> organismes HATVP (multi-org, multi-niveaux)
 # --------------------------------------------------------------------------- #
 
+# Part minimale des tokens distinctifs de la MENTION couverts par le nom de
+# l'organisme pour le tier gold. Sans ce garde-fou, une mention « Transparency
+# International France » couvre 100 % des tokens de « JT INTERNATIONAL FRANCE »
+# et passe gold alors que la moitié de la mention n'est pas expliquée.
+MENTION_COVER_GOLD = 0.75
+
+
 def resolve_mention(mention: str, orgs, tok_index, alias_index, norm_names,
-                    min_score, min_cover, cand_score, cand_cover):
+                    min_score, min_cover, cand_score, cand_cover, alias_phrases=()):
     """Mention capturée -> TOUS les organismes plausibles (pas seulement le meilleur).
 
     Retourne [(org_idx, score, cover, match_type, tier)] avec
     tier ∈ {"full", "cand"} selon les seuils atteints.
+
+    Tier "full" (gold) : score >= min_score, TOUS les tokens distinctifs de
+    l'organisme dans la mention (cover == 1.0), et >= MENTION_COVER_GOLD des
+    tokens distinctifs de la mention expliqués par le nom de l'organisme.
+    Comparaisons insensibles au pluriel (fold).
     """
     mention = LEAD_FILLER.sub("", mention.strip(" \t'’\"«»-–"))
     m = norm(mention)
     if len(m) < 2:
         return []
     m_tokens = set(m.split())
+    m_folded = {fold(t) for t in m_tokens}
 
     results = {}
 
@@ -513,10 +540,22 @@ def resolve_mention(mention: str, orgs, tok_index, alias_index, norm_names,
         i = alias_index.get(t)
         if i is not None:
             results[i] = (100.0, 1.0, "acronyme", "full")
+    # a') alias multi-mots (fichier externe, sigles JSON) en sous-chaîne de la mention
+    padded_m = f" {m} "
+    for a_norm, i in alias_phrases:
+        if i not in results and f" {a_norm} " in padded_m:
+            results[i] = (100.0, 1.0, "alias", "full")
 
     # b) résolution floue multi-org. On ne rassemble des candidats que via les
     # tokens DISCRIMINANTS : ni trop courts, ni trop fréquents (un token présent
     # dans des centaines d'organismes, ex. "france", ne discrimine rien et coûte cher).
+    # Une mention sans AUCUN token distinctif (« le Conseil », « l'association »)
+    # est une anaphore, pas un nom d'organisme -> jamais de résolution floue.
+    mdist = {fold(t) for t in m_tokens
+             if len(t) >= 3 and t not in STOP and not t.isdigit()}
+    if not mdist:
+        return [(i, s, c, mt, tier) for i, (s, c, mt, tier) in results.items()]
+
     lawref = looks_like_lawref(m)
     cand = set()
     for t in m_tokens:
@@ -528,7 +567,7 @@ def resolve_mention(mention: str, orgs, tok_index, alias_index, norm_names,
         if norm_names[i] in BLOCKLIST_NORM or i in results:
             continue
         dt = orgs[i]["distinct_tokens"]
-        cover = sum(t in m_tokens for t in dt) / len(dt) if dt else 0.0
+        cover = (sum(fold(t) in m_folded for t in dt) / len(dt)) if dt else 0.0
         if cover < cand_cover:
             continue
         s = token_set_ratio(m, norm_names[i])
@@ -537,7 +576,10 @@ def resolve_mention(mention: str, orgs, tok_index, alias_index, norm_names,
         # garde-fou référence législative : rejet sauf résolution parfaite
         if lawref and not (cover == 1.0 and s >= 98):
             continue
-        tier = "full" if (s >= min_score and cover >= min_cover) else "cand"
+        org_folded = {fold(t) for t in norm_names[i].split()}
+        m_cover = sum(t in org_folded for t in mdist) / len(mdist)
+        tier = ("full" if (s >= min_score and cover >= 1.0
+                           and m_cover >= MENTION_COVER_GOLD) else "cand")
         results[i] = (s, cover, "cue+fuzzy", tier)
 
     return [(i, s, c, mt, tier) for i, (s, c, mt, tier) in results.items()]
@@ -630,17 +672,19 @@ UNRES_HEADER = [
 
 def scan_text(text: str, source_field: str, ctx, args):
     """Scanne un champ texte, retourne (matches, unresolved)."""
-    orgs, tok_index, alias_index, alias_lookup, alias_multi, norm_names, learned, rcache = ctx
+    (orgs, tok_index, alias_index, alias_lookup, alias_multi, alias_phrases,
+     norm_names, learned, rcache) = ctx
     matches = {}
 
-    def add(i, evidence, match_type, score, cover, pos, tier="full"):
+    def add(i, evidence, match_type, score, cover, pos, tier="full", mention=""):
         ev = evidence if tier == "full" else "candidate"
         snip = text[max(0, pos - 30):pos + 130].replace("\n", " ").strip()[:160]
         stance = detect_stance(text, pos, evidence)
         prev = matches.get(i)
         if prev is None or (EV_RANK[ev], score) > (EV_RANK[prev["evidence"]], prev["score"]):
             matches[i] = {"evidence": ev, "match_type": match_type, "score": round(score, 1),
-                          "cover": round(cover, 2), "stance": stance,
+                          "cover": round(cover, 2), "stance": stance, "pos": pos,
+                          "mention_toks": set(norm(mention).split()) if mention else set(),
                           "source_field": source_field, "snippet": snip}
 
     # Acteurs cités avec attribution mais NON rattachés à la HATVP (on les garde).
@@ -661,7 +705,8 @@ def scan_text(text: str, source_field: str, ctx, args):
         v = rcache.get(k)
         if v is None:
             v = resolve_mention(mention, orgs, tok_index, alias_index_all, norm_names,
-                                args.min_score, args.min_cover, args.cand_score, args.cand_cover)
+                                args.min_score, args.min_cover, args.cand_score,
+                                args.cand_cover, alias_phrases)
             rcache[k] = v
         return v
 
@@ -679,7 +724,8 @@ def scan_text(text: str, source_field: str, ctx, args):
     for mm in PAREN_ACRO.finditer(text):
         long_name, sigle = mm.group(1), mm.group(2)
         res = resolve_mention(long_name, orgs, tok_index, alias_index, norm_names,
-                              args.min_score, args.min_cover, args.cand_score, args.cand_cover)
+                              args.min_score, args.min_cover, args.cand_score,
+                              args.cand_cover, alias_phrases)
         for i, s, c, _, tier in res:
             if tier == "full":
                 learned.setdefault(norm(sigle), i)
@@ -701,7 +747,8 @@ def scan_text(text: str, source_field: str, ctx, args):
                 evidence = "co_redaction" if cue_gold else "mention_directe"
                 if not cue_gold:
                     tier = "full" if tier == "full" else "cand"
-                add(i, evidence, f"cue+{mt}" if mt != "cue+fuzzy" else mt, s, c, m.start(), tier)
+                add(i, evidence, f"cue+{mt}" if mt != "cue+fuzzy" else mt, s, c,
+                    m.start(), tier, mention)
             # acteur explicitement co-rédacteur mais absent de la HATVP -> conservé
             if cue_gold:
                 unresolved_actors(mention, "co_redaction", m.start(), res)
@@ -713,7 +760,7 @@ def scan_text(text: str, source_field: str, ctx, args):
             continue
         res = R(subj)
         for i, s, c, mt, tier in res:
-            add(i, "org_sujet_actif", f"sujet+{mt}", s, c, m.start(1), tier)
+            add(i, "org_sujet_actif", f"sujet+{mt}", s, c, m.start(1), tier, subj)
         if not any(t == "full" for *_, t in res):   # sujet actif non rattaché -> conservé
             unresolved_actors(subj, "org_sujet_actif", m.start(1), res)
 
@@ -743,16 +790,34 @@ def collapse_entity_fanout(entries, orgs, norm_names):
     groups = defaultdict(list)
     for i, lab in entries:
         groups[frozenset(orgs[i]["distinct_tokens"])].append((i, lab))
+
+    def extra_tokens(i, lab):
+        # tokens non-génériques du nom d'org ABSENTS de la mention capturée
+        # (« MUTUALITE FRANCAISE IDF » a « idf » en trop face à une mention
+        # « Mutualité Française » -> on lui préfère la fédération nationale).
+        mtoks = {fold(t) for t in lab.get("mention_toks") or ()}
+        if not mtoks:
+            return 0
+        return sum(1 for t in norm_names[i].split()
+                   if t not in STOP and fold(t) not in mtoks)
+
     kept = {}
     for grp in groups.values():
-        ci = min(grp, key=lambda il: (len(norm_names[il[0]].split()), len(norm_names[il[0]])))[0]
-        kept[ci] = max(grp, key=lambda il: (EV_RANK[il[1]["evidence"]], il[1]["score"]))[1]
+        best = max(grp, key=lambda il: (EV_RANK[il[1]["evidence"]], il[1]["score"]))[1]
+        ci = min(grp, key=lambda il: (extra_tokens(il[0], best),
+                                      len(norm_names[il[0]].split()),
+                                      len(norm_names[il[0]])))[0]
+        kept[ci] = best
 
-    kept_sets = [frozenset(orgs[i]["distinct_tokens"]) for i in kept if orgs[i]["distinct_tokens"]]
+    # sur-ensemble d'un autre gardé -> écarté, mais seulement si le sous-ensemble
+    # est AU MOINS aussi fiable (sinon « Transparency International France »,
+    # co-rédaction, serait écarté au profit de « JT International », candidat).
+    kept_list = [(i, frozenset(orgs[i]["distinct_tokens"]), lab) for i, lab in kept.items()]
     final = {}
-    for i, lab in kept.items():
-        ts = set(orgs[i]["distinct_tokens"])
-        if ts and any(fs < ts for fs in kept_sets):    # sur-ensemble d'un autre gardé
+    for i, ts, lab in kept_list:
+        if ts and any(fs < ts and (EV_RANK[l2["evidence"]], l2["score"]) >=
+                      (EV_RANK[lab["evidence"]], lab["score"])
+                      for j, fs, l2 in kept_list if j != i):
             continue
         final[i] = lab
     return final
@@ -805,7 +870,13 @@ def run(args):
         if len(a) >= 4 and a.isupper() and na not in COMMON_WORDS:
             alias_lookup.setdefault(a.capitalize(), i)
 
-    ctx = (orgs, tok_index, alias_index, alias_lookup, alias_multi, norm_names, learned, {})
+    # alias multi-mots utilisables dans la résolution de mention (fichier externe,
+    # sigles JSON) — les alias appris en cours de run sont des sigles sans espace,
+    # la liste est donc stable et calculée une seule fois.
+    alias_phrases = sorted(((a, i) for a, i in alias_index.items() if " " in a),
+                           key=lambda x: -len(x[0]))
+    ctx = (orgs, tok_index, alias_index, alias_lookup, alias_multi, alias_phrases,
+           norm_names, learned, {})
 
     with open(args.input, encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -861,8 +932,11 @@ def run(args):
             # confondus (evidence puis score). Deux organismes pour un amendement
             # n'ont pas de sens ici -> on ne garde que le plus fiable.
             if final:
+                # à fiabilité égale, l'organisme cité en PREMIER dans le texte
+                # (« travaillé avec le SER et Enerplan » -> SER)
                 i, lab = max(final.items(),
-                             key=lambda il: (EV_RANK[il[1]["evidence"]], il[1]["score"]))
+                             key=lambda il: (EV_RANK[il[1]["evidence"]], il[1]["score"],
+                                             -il[1].get("pos", 0)))
                 o = orgs[i]
                 ev = lab["evidence"]
                 tier = ("gold" if ev in ("co_redaction", "org_sujet_actif")
@@ -942,8 +1016,9 @@ def main():
     p.add_argument("--no-content", action="store_true",
                    help="Ne pas scanner le dispositif (comportement v1).")
     p.add_argument("--hatvp", default="data/agora_repertoire_opendata.json.gz")
-    p.add_argument("--aliases", default=None,
-                   help="CSV optionnel d'alias externes : colonnes alias,denomination[,siren].")
+    p.add_argument("--aliases", default="data/aliases_hatvp.csv",
+                   help="CSV optionnel d'alias externes : colonnes alias,denomination[,siren]. "
+                        "Ignoré silencieusement si le fichier n'existe pas.")
     p.add_argument("--outdir", default="data/gold")
     p.add_argument("--min-score", type=int, default=90, help="Seuil gold de résolution floue.")
     p.add_argument("--min-cover", type=float, default=0.6,
