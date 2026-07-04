@@ -8,7 +8,7 @@ Ces données permettent de capturer les mobilisations et les signaux de la soci�
 
 ## Documents du défi
 
-- Ensemble des amendements 
+- Ensemble des amendements (depuis [medialab/parlement_nlp](https://github.com/medialab/parlement_nlp))
 - Ensemble des PJL et PPL
 - Pétitions citoyennes déposées à l'Assemblée nationale
 - Repertoire des activités déclarées par les représentants d'intérêts (HATVP)
