@@ -1,7 +1,6 @@
 scripts/data
 
 # Secrets
-.env
 .venv/
 
 __pycache__/
