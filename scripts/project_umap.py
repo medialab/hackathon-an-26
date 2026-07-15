@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Projection UMAP conjointe HATVP + amendements, et vérification du même espace.
+"""Projection UMAP conjointe HATVP + amendements + posts Facebook, et
+vérification du même espace.
 
-Entrées : data/embeddings/*.npy + *.parquet (cf. convert_embeddings.py)
-Sorties : data/embeddings/umap_coords.npz  (coords 2D des deux jeux)
+Entrées : data/embeddings/*.npy + *.parquet
+          (cf. convert_embeddings.py, convert_facebook.py)
+Sorties : data/embeddings/umap_coords.npz  (coords 2D des trois jeux)
           stdout : sanity check paires gold vs aléatoire
 """
 from pathlib import Path
@@ -23,9 +25,10 @@ def l2norm(x: np.ndarray) -> np.ndarray:
 def main() -> None:
     hatvp = l2norm(np.load(EMB / "hatvp_embeddings.npy"))
     amd = l2norm(np.load(EMB / "amendments_embeddings.npy"))
+    fb = l2norm(np.load(EMB / "facebook_embeddings.npy"))
     hatvp_meta = pd.read_parquet(EMB / "hatvp_meta.parquet")
     amd_meta = pd.read_parquet(EMB / "amendments_meta.parquet")
-    print(f"HATVP {hatvp.shape}, amendements {amd.shape}", flush=True)
+    print(f"HATVP {hatvp.shape}, amendements {amd.shape}, Facebook {fb.shape}", flush=True)
 
     # --- Sanity check : les paires gold doivent être plus proches que le hasard ---
     gold = amd_meta[amd_meta["org_denomination"].str.strip() != ""]
@@ -51,7 +54,7 @@ def main() -> None:
     # --- PCA 50 sur l'ensemble, puis UMAP 2D ---
     from sklearn.decomposition import PCA
 
-    X = np.vstack([hatvp, amd])
+    X = np.vstack([hatvp, amd, fb])
     pca = PCA(n_components=50, random_state=42)
     Xp = pca.fit_transform(X)
     print(f"PCA 50 : variance expliquée {pca.explained_variance_ratio_.sum():.2%}", flush=True)
@@ -62,9 +65,12 @@ def main() -> None:
         n_neighbors=15, min_dist=0.1, metric="cosine", random_state=42, verbose=True
     )
     coords = reducer.fit_transform(Xp).astype(np.float32)
-    n_h = hatvp.shape[0]
+    n_h, n_a = hatvp.shape[0], amd.shape[0]
     np.savez_compressed(
-        EMB / "umap_coords.npz", hatvp=coords[:n_h], amendments=coords[n_h:]
+        EMB / "umap_coords.npz",
+        hatvp=coords[:n_h],
+        amendments=coords[n_h:n_h + n_a],
+        facebook=coords[n_h + n_a:],
     )
     print("UMAP OK →", EMB / "umap_coords.npz", flush=True)
 
